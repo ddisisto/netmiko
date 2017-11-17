@@ -71,18 +71,6 @@ class CiscoBaseConnection(BaseConnection):
 
                 return_msg += output
 
-                # Check for device with no password configured
-                if re.search(r"assword required, but none set", output):
-                    msg = "Telnet login failed - Password required, but none set: {0}".format(
-                        self.host)
-                    raise NetMikoAuthenticationException(msg)
-
-                # Check for device rejecting the credentials
-                if re.search(r"% Login invalid", output):
-                    msg = "Telnet login failed - Credentials rejected: {0}".format(
-                        self.host)
-                    raise NetMikoAuthenticationException(msg)
-
                 # Search for username pattern / send username
                 if re.search(username_pattern, output):
                     self.write_channel(self.username + TELNET_RETURN)

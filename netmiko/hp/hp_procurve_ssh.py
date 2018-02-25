@@ -45,11 +45,12 @@ class HPProcurveSSH(CiscoSSHConnection):
                default_username='manager'):
         """Enter enable mode"""
         output = self.send_command_timing(cmd)
-        if 'username' in output.lower():
+        if 'username' in output.lower() or 'login name' in output.lower() or \
+                'user name' in output.lower():
             output += self.send_command_timing(default_username)
         if 'password' in output.lower():
             output += self.send_command_timing(self.secret)
-        log.debug("{0}".format(output))
+        log.debug("{}".format(output))
         self.clear_buffer()
         return output
 
@@ -71,3 +72,7 @@ class HPProcurveSSH(CiscoSSHConnection):
             except socket.error:
                 break
             count += 1
+
+    def save_config(self, cmd='write memory', confirm=False):
+        """Save Config."""
+        return super(HPProcurveSSH, self).save_config(cmd=cmd, confirm=confirm)

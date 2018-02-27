@@ -63,79 +63,20 @@ class CiscoBaseConnection(BaseConnection):
                                      username_pattern, pwd_pattern, delay_factor, max_loops)
 
     def telnet_login(self, pri_prompt_terminator=r'#\s*$', alt_prompt_terminator=r'>\s*$',
-                     username_pattern=r"(?:[Uu]ser:|sername|ogin)", pwd_pattern=r"assword",
+                     username_pattern=r"(?:[Uu]ser:|sername|ogin)",
+                     pwd_pattern=r"assword",
+                     error_pattern=r"^\s*%\s*(.*)$",
                      delay_factor=1, max_loops=20):
-        """Telnet login. Can be username/password or just password."""
-        delay_factor = self.select_delay_factor(delay_factor)
-        time.sleep(1 * delay_factor)
-
-        output = ''
-        return_msg = ''
-        i = 1
-        while i <= max_loops:
-            try:
-                # No error checking on first read, in case login banner looks like an error message
-                if i == 1:
-                    output = self.read_channel()
-                else:
-                    output = self._read_channel_login()
-
-                return_msg += output
-
-                # Search for username pattern / send username
-                if re.search(username_pattern, output):
-                    self.write_channel(self.username + self.TELNET_RETURN)
-                    time.sleep(1 * delay_factor)
-                    output = self._read_channel_login()
-                    return_msg += output
-
-                # Search for password pattern / send password
-                if re.search(pwd_pattern, output):
-                    self.write_channel(self.password + self.TELNET_RETURN)
-                    time.sleep(.5 * delay_factor)
-                    output = self._read_channel_login()
-                    return_msg += output
-                    if (re.search(pri_prompt_terminator, output, flags=re.M)
-                            or re.search(alt_prompt_terminator, output, flags=re.M)):
-                        return return_msg
-
-                # Support direct telnet through terminal server
-                if re.search(r"initial configuration dialog\? \[yes/no\]: ", output):
-                    self.write_channel("no" + self.TELNET_RETURN)
-                    time.sleep(.5 * delay_factor)
-                    count = 0
-                    while count < 15:
-                        output = self._read_channel_login()
-                        return_msg += output
-                        if re.search(r"ress RETURN to get started", output):
-                            output = ""
-                            break
-                        time.sleep(2 * delay_factor)
-                        count += 1
-
-                # Check if proper data received
-                if (re.search(pri_prompt_terminator, output, flags=re.M)
-                        or re.search(alt_prompt_terminator, output, flags=re.M)):
-                    return return_msg
-
-                self.write_channel(self.TELNET_RETURN)
-                time.sleep(.5 * delay_factor)
-                i += 1
-            except EOFError:
-                msg = "Telnet login failed: {}".format(self.host)
-                raise NetMikoAuthenticationException(msg)
-
-        # Last try to see if we already logged in
-        self.write_channel(self.TELNET_RETURN)
-        time.sleep(.5 * delay_factor)
-        output = self._read_channel_login()
-        return_msg += output
-        if (re.search(pri_prompt_terminator, output, flags=re.M)
-                or re.search(alt_prompt_terminator, output, flags=re.M)):
-            return return_msg
-
-        msg = "Telnet login failed: {}".format(self.host)
-        raise NetMikoAuthenticationException(msg)
+        """Telnet login. Can be username/password or just password.
+           NB. error_pattern default value differs from parent class method
+        """
+        return super(CiscoBaseConnection, self).telnet_login(
+            pri_prompt_terminator=pri_prompt_terminator,
+            alt_prompt_terminator=alt_prompt_terminator,
+            username_pattern=username_pattern,
+            pwd_pattern=pwd_pattern,
+            error_pattern=error_pattern,
+            delay_factor=delay_factor, max_loops=max_loops)
 
     def cleanup(self):
         """Gracefully exit the SSH session."""

@@ -477,12 +477,11 @@ class BaseConnection(object):
                      pwd_pattern=r"assword",
                      error_pattern=r"(?i)(invalid login|login failed)",
                      delay_factor=1, max_loops=20):
-        """Telnet login. Can be username/password or just password."""
+        """Telnet login. Can be none, just a password, or username/password."""
 
-        prompt_pattern = re.compile('|'.join((pri_prompt_terminator, alt_prompt_terminator)))
         delay_factor = self.select_delay_factor(delay_factor)
+        prompt_pattern = re.compile('|'.join((pri_prompt_terminator, alt_prompt_terminator)))
 
-        output = ''
         return_msg = ''
         prompt_found = False
         errors = []
@@ -500,45 +499,48 @@ class BaseConnection(object):
                 raise NetMikoAuthenticationException(msg)
 
             return_msg += output
-            last_line = output.split(self.RESPONSE_RETURN)[-1]
-
             errors_match = re.findall(error_pattern, output, flags=re.M)
+
+            last_line = output.split(self.RESPONSE_RETURN)[-1]
             prompt_match = re.search(prompt_pattern, last_line)
             username_match = re.search(username_pattern, last_line)
             password_match = re.search(pwd_pattern, last_line)
 
             write_data = None
 
-            # Check for prompt first (may be no auth. required at all)
+            # Check for prompt first, if present then login is complete
             if prompt_match:
                 prompt_found = True
+                break
 
-            # Check the output for any errors, meaning we should abort
-            # (only after communications established, ensures e.g. MOTD doesn't trigger)
+            # Check the output for any errors
+            # (only after communications established, ensures e.g. MOTD can't trigger)
             elif errors_match and anything_sent:
                 errors.extend(errors_match)
+                break
 
             # Send the username if requested
             elif username_match and not anything_sent:
-                write_data = self.username
+                write_data = self.username + self.TELNET_RETURN
                 anything_sent = True
 
             # Send the password if requested
             elif password_match and not password_sent:
-                write_data = self.password
-                password_sent = True
+                write_data = self.password + self.TELNET_RETURN
                 anything_sent = True
+                password_sent = True
 
-            # Send just a return to wake things up if nothing seems to be happening
+            # Send just a return to wake things up if nothing is happening
             elif not anything_sent:
-                write_data = ''
+                write_data = self.TELNET_RETURN
 
             if write_data is not None:
-                self.write_channel(write_data + self.TELNET_RETURN)
+                try:
+                    self.write_channel(write_data)
+                except EOFError:
+                    msg = "Telnet connection closed unexpectedly: {}".format(self.host)
+                    raise NetMikoAuthenticationException(msg)
                 time.sleep(.5 * delay_factor)
-
-            elif prompt_found or errors:
-                break
 
             i += 1
 

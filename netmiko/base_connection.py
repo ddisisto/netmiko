@@ -423,21 +423,17 @@ class BaseConnection(object):
                      delay_factor=1, max_loops=20):
         """Telnet login. Can be username/password or just password."""
 
-        delay_factor = self.select_delay_factor(delay_factor)
-
-        # elements popped off this list after being written to the channel, to
-        # ensure that credentials are only sent once, and in the correct order
-        prompt_answers = [
-            (username_pattern, self.username),
-            (pwd_pattern, self.password)]
-
         prompt_pattern = re.compile('|'.join((pri_prompt_terminator, alt_prompt_terminator)))
+        delay_factor = self.select_delay_factor(delay_factor)
 
         output = ''
         return_msg = ''
         prompt_found = False
         errors = []
-        i = 1
+        i = 0
+
+        password_sent = False
+        anything_sent = False
 
         while i <= max_loops:
             time.sleep(1 * delay_factor)
@@ -449,27 +445,46 @@ class BaseConnection(object):
 
             return_msg += output
             last_line = output.split(self.RESPONSE_RETURN)[-1]
-            i += 1
 
             errors_match = re.findall(error_pattern, output, flags=re.M)
-            if errors_match:
+            prompt_match = re.search(prompt_pattern, last_line)
+            username_match = re.search(username_pattern, last_line)
+            password_match = re.search(pwd_pattern, last_line)
+
+            write_data = None
+
+            # Check for prompt first (may be no auth. required at all)
+            if prompt_match:
+                prompt_found = True
+
+            # Check the output for any errors, meaning we should abort
+            # (only after communications established, ensures e.g. MOTD doesn't trigger)
+            elif errors_match and anything_sent:
                 errors.extend(errors_match)
 
-            if re.search(prompt_pattern, last_line):
-                prompt_found = True
+            # Send the username if requested
+            elif username_match and not anything_sent:
+                write_data = self.username
+                anything_sent = True
+
+            # Send the password if requested
+            elif password_match and not password_sent:
+                write_data = self.password
+                password_sent = True
+                anything_sent = True
+
+            # Send just a return to wake things up if nothing seems to be happening
+            elif not anything_sent:
+                write_data = ''
+
+            if write_data is not None:
+                self.write_channel(write_data + self.TELNET_RETURN)
+                time.sleep(.5 * delay_factor)
+
+            elif prompt_found or errors:
                 break
 
-            responded = False
-            for i, (pattern, answer) in prompt_answers:
-                if re.search(pattern, last_line):
-                    self.write_channel(answer + self.TELNET_RETURN)
-                    responded = True
-                    time.sleep(.5 * delay_factor)
-                    del(prompt_answers[0:i])
-                    break
-
-            if not responded:  # no interesting patterns found, try sending a RETURN to shake things up
-                self.write_channel(self.TELNET_RETURN)
+            i += 1
 
         if prompt_found:
             return return_msg

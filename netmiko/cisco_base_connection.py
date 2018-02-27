@@ -27,8 +27,6 @@ class CiscoBaseConnection(BaseConnection):
 
         Cisco IOS devices abbreviate the prompt at 20 chars in config mode
         """
-        if not pattern:
-            pattern = re.escape(self.base_prompt[:16])
         return super(CiscoBaseConnection, self).check_config_mode(check_string=check_string,
                                                                   pattern=pattern)
 
@@ -63,12 +61,12 @@ class CiscoBaseConnection(BaseConnection):
                                      username_pattern, pwd_pattern, delay_factor, max_loops)
 
     def telnet_login(self, pri_prompt_terminator=r'#\s*$', alt_prompt_terminator=r'>\s*$',
-                     username_pattern=r"(?:[Uu]ser:|sername|ogin)",
+                     username_pattern=r"(?:[Uu]ser:|sername|ogin|User Name)",
                      pwd_pattern=r"assword",
                      error_pattern=r"^\s*%\s*(.*)$",
                      delay_factor=1, max_loops=20):
         """Telnet login. Can be username/password or just password.
-           NB. error_pattern default value differs from parent class method
+	   Only default parameter vaules differ from parent class
         """
         return super(CiscoBaseConnection, self).telnet_login(
             pri_prompt_terminator=pri_prompt_terminator,
@@ -102,17 +100,20 @@ class CiscoBaseConnection(BaseConnection):
         raise ValueError("An error occurred in dynamically determining remote file "
                          "system: {} {}".format(cmd, output))
 
-    def _read_channel_login(self, error_pattern=r"^% (\w[\w, ]+)", error_re_flags=re.M):
-        """
-        Wrapper around read_channel() to raise exception for errors during login.
-        Any line matching the error_pattern is considered an error.
-        """
-        output = self.read_channel()
-        error_match = re.search(error_pattern, output, flags=error_re_flags)
-        if error_match:
-            error_string = ' '.join((x.strip() for x in error_match.groups()))
-            msg = 'Telnet login failed - {0}: {1}'.format(error_string, self.host)
-            raise NetMikoAuthenticationException(msg)
+    def save_config(self, cmd='copy running-config startup-config', confirm=False,
+                    confirm_response=''):
+        """Saves Config."""
+        self.enable()
+        if confirm:
+            output = self.send_command_timing(command_string=cmd)
+            if confirm_response:
+                output += self.send_command_timing(confirm_response)
+            else:
+                # Send enter by default
+                output += self.send_command_timing(self.RETURN)
+        else:
+            # Some devices are slow so match on trailing-prompt if you can
+            output = self.send_command(command_string=cmd)
         return output
 
 

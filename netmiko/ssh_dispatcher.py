@@ -5,12 +5,11 @@ from netmiko.a10 import A10SSH
 from netmiko.accedian import AccedianSSH
 from netmiko.alcatel import AlcatelAosSSH
 from netmiko.alcatel import AlcatelSrosSSH
-from netmiko.arista import AristaSSH, AristaFileTransfer
+from netmiko.arista import AristaSSH
+from netmiko.arista import AristaFileTransfer
 from netmiko.aruba import ArubaSSH
 from netmiko.avaya import AvayaErsSSH
 from netmiko.avaya import AvayaVspSSH
-from netmiko.brocade import BrocadeFastironSSH
-from netmiko.brocade import BrocadeFastironTelnet
 from netmiko.brocade import BrocadeNetironSSH
 from netmiko.brocade import BrocadeNetironTelnet
 from netmiko.brocade import BrocadeNosSSH
@@ -32,11 +31,13 @@ from netmiko.eltex import EltexSSH
 from netmiko.enterasys import EnterasysSSH
 from netmiko.extreme import ExtremeSSH
 from netmiko.extreme import ExtremeWingSSH
+from netmiko.extreme import ExtremeTelnet
 from netmiko.f5 import F5LtmSSH
 from netmiko.fortinet import FortinetSSH
 from netmiko.hp import HPProcurveSSH, HPComwareSSH
-from netmiko.huawei import HuaweiSSH
-from netmiko.juniper import JuniperSSH, JuniperFileTransfer
+from netmiko.huawei import HuaweiSSH, HuaweiVrpv8SSH
+from netmiko.juniper import JuniperSSH
+from netmiko.juniper import JuniperFileTransfer
 from netmiko.linux import LinuxSSH
 from netmiko.mellanox import MellanoxSSH
 from netmiko.mrv import MrvOptiswitchSSH
@@ -45,6 +46,8 @@ from netmiko.ovs import OvsLinuxSSH
 from netmiko.paloalto import PaloAltoPanosSSH
 from netmiko.pluribus import PluribusSSH
 from netmiko.quanta import QuantaMeshSSH
+from netmiko.ruckus import RuckusFastironSSH
+from netmiko.ruckus import RuckusFastironTelnet
 from netmiko.terminal_server import TerminalServerSSH
 from netmiko.terminal_server import TerminalServerTelnet
 from netmiko.ubiquiti import UbiquitiEdgeSSH
@@ -61,7 +64,7 @@ CLASS_MAPPER_BASE = {
     'aruba_os': ArubaSSH,
     'avaya_ers': AvayaErsSSH,
     'avaya_vsp': AvayaVspSSH,
-    'brocade_fastiron': BrocadeFastironSSH,
+    'brocade_fastiron': RuckusFastironSSH,
     'brocade_netiron': BrocadeNetironSSH,
     'brocade_nos': BrocadeNosSSH,
     'brocade_vdx': BrocadeNosSSH,
@@ -90,6 +93,7 @@ CLASS_MAPPER_BASE = {
     'hp_comware': HPComwareSSH,
     'hp_procurve': HPProcurveSSH,
     'huawei': HuaweiSSH,
+    'huawei_vrpv8': HuaweiVrpv8SSH,
     'juniper': JuniperSSH,
     'juniper_junos': JuniperSSH,
     'linux': LinuxSSH,
@@ -100,7 +104,9 @@ CLASS_MAPPER_BASE = {
     'paloalto_panos': PaloAltoPanosSSH,
     'pluribus': PluribusSSH,
     'quanta_mesh': QuantaMeshSSH,
+    'ruckus_fastiron': RuckusFastironSSH,
     'ubiquiti_edge': UbiquitiEdgeSSH,
+    'ubiquiti_edgeswitch': UbiquitiEdgeSSH,
     'vyatta_vyos': VyOSSSH,
     'vyos': VyOSSSH,
 }
@@ -109,6 +115,7 @@ FILE_TRANSFER_MAP = {
     'arista_eos': AristaFileTransfer,
     'cisco_asa': CiscoAsaFileTransfer,
     'cisco_ios': CiscoIosFileTransfer,
+    'cisco_xe': CiscoIosFileTransfer,
     'cisco_nxos': CiscoNxosFileTransfer,
     'juniper_junos': JuniperFileTransfer,
 }
@@ -129,11 +136,13 @@ for k, v in FILE_TRANSFER_MAP.items():
 FILE_TRANSFER_MAP = new_mapper
 
 # Add telnet drivers
-CLASS_MAPPER['brocade_fastiron_telnet'] = BrocadeFastironTelnet
+CLASS_MAPPER['brocade_fastiron_telnet'] = RuckusFastironTelnet
 CLASS_MAPPER['brocade_netiron_telnet'] = BrocadeNetironTelnet
 CLASS_MAPPER['cisco_ios_telnet'] = CiscoIosTelnet
 CLASS_MAPPER['dell_powerconnect_telnet'] = DellPowerConnectTelnet
 CLASS_MAPPER['generic_termserver_telnet'] = TerminalServerTelnet
+CLASS_MAPPER['extreme_telnet'] = ExtremeTelnet
+CLASS_MAPPER['ruckus_fastiron_telnet'] = RuckusFastironTelnet
 
 # Add serial drivers
 CLASS_MAPPER['cisco_ios_serial'] = CiscoIosSerial
@@ -151,8 +160,8 @@ platforms_str = "\n" + platforms_str
 
 scp_platforms = list(FILE_TRANSFER_MAP.keys())
 scp_platforms.sort()
-scp_platforms_str = "\n".join(platforms_base)
-scp_platforms_str = "\n" + platforms_str
+scp_platforms_str = "\n".join(scp_platforms)
+scp_platforms_str = "\n" + scp_platforms_str
 
 
 def ConnectHandler(*args, **kwargs):
